@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام محاكاة التوازن البيئي - مكة المكرمة</title>
+    <style>
+        :root {
+            /* لوحة ألوان علمية/بحثية */
+            --primary-color: #0ea5e9; /* أزرق سماوي علمي */
+            --accent-color: #38bdf8; /* درجة أفتح للتباين */
+            --success-color: #10b981; /* أخضر للطبيعة */
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-color: #0f172a; /* خلفية داكنة احترافية (Slate) */
+            --panel-bg: rgba(30, 41, 59, 0.85); /* خلفية اللوحات */
+            --text-color: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
+            color: var(--text-color);
+            touch-action: none;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        /* --- شاشة الترحيب (نمط مركز أبحاث) --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            /* خلفية شبكية توحي بالدقة الهندسية */
+            background-image: 
+                linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1000;
+            padding: 0 20px; /* إزالة البادينغ العلوي والسفلي للتحكم اليدوي */
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* حاوية المحتوى الرئيسي في المنتصف */
+        .splash-content {
+            flex-grow: 1; /* يأخذ المساحة المتاحة ليدفع الفوتر للأسفل */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* شعار/أيقونة رمزية */
+        .research-icon {
+            font-size: 4.5rem;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.3));
+            animation: pulse 3s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        #splash-screen h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #splash-screen h2 {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 3.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-bottom: 2px solid rgba(14, 165, 233, 0.2);
+            padding-bottom: 12px;
+            display: inline-block;
+        }
+
+        #start-btn {
+            background: linear-gradient(135deg, var(--primary-color), #0284c7);
+            color: #fff;
+            border: none;
+            padding: 18px 60px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 50px; /* دائري أكثر */
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.4), 0 0 0 4px rgba(14, 165, 233, 0.1);
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #start-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 20px 30px -5px rgba(14, 165, 233, 0.5), 0 0 0 6px rgba(14, 165, 233, 0.2);
+        }
+        
+        #start-btn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #start-btn:hover::after { opacity: 1; }
+
+        /* بطاقة المطور الاحترافية (Footer) */
+        .credits-card {
+            margin-bottom: 30px; /* مسافة من الأسفل */
+            background: rgba(15, 23, 42, 0.8);
+            border-top: 1px solid rgba(14, 165, 233, 0.3);
+            border-bottom: 1px solid rgba(14, 165, 233, 0.1);
+            padding: 20px 25px;
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: row; /* جعلها أفقية للشاشات العريضة */
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* تأثير لمعان خفيف للبطاقة */
+        .credits-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--primary-color);
+            opacity: 0.8;
+        }
+
+        .dev-branding {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dev-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        .dev-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-color);
+            background: linear-gradient(90deg, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .whatsapp-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .whatsapp-link:hover {
+            background: var(--success-color);
+            color: #064e3b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        @media (max-width: 480px) {
+            .credits-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+                padding: 20px;
+            }
+            .credits-card::before {
+                width: 100%; height: 2px; top: 0; left: 0;
+            }
+            .dev-branding { text-align: center; }
+            .whatsapp-link { width: 100%; box-sizing: border-box; }
+        }
+
+        /* --- مؤشر التعليمات --- */
+        #tutorial-pointer {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            animation: bounce 2s infinite;
+        }
+
+        #tutorial-pointer p {
+            background: var(--primary-color);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        #tutorial-pointer::after {
+            content: '';
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid var(--primary-color);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
+            40% {transform: translateX(-50%) translateY(-10px);}
+            60% {transform: translateX(-50%) translateY(-5px);}
+        }
+
+        /* --- عناصر الواجهة (UI Elements) --- */
+        .ui-element {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 10;
+        }
+        .hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(10px);
+        }
+
+        /* زر الإخفاء */
+        #toggle-ui-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            font-size: 18px;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(8px);
+        }
+        #toggle-ui-btn:hover {
+            color: var(--text-color);
+            border-color: var(--primary-color);
+        }
+
+        /* اللوحة العلوية */
+        #top-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            left: auto;
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .metric {
+            background: var(--panel-bg);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 65px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .metric:hover { border-color: var(--primary-color); }
+        .metric:active { transform: scale(0.97); }
+
+        .metric span { font-size: 13px; margin-bottom: 8px; color: var(--text-muted); font-weight: 500; }
+        .metric-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.5s ease-out; }
+
+        /* صندوق الشرح */
+        #explanation-box {
+            position: absolute;
+            top: 90px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border-right: 4px solid var(--primary-color);
+            padding: 16px;
+            border-radius: 4px;
+            width: 260px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            z-index: 110;
+            display: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            color: var(--text-color);
+            pointer-events: none;
+        }
+        #explanation-box.active { display: block; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* رسائل التنبيه */
+        #message-box {
+            position: absolute;
+            top: 120px; /* نقلناه للأعلى قليلاً */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(15, 23, 42, 0.9);
+            padding: 16px 24px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            pointer-events: none;
+            border: 1px solid; /* اللون يتحدد بالجافاسكربت */
+            width: auto;
+            min-width: 300px;
+            max-width: 90%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            backdrop-filter: blur(4px);
+        }
+
+        /* اللوحة السفلية */
+        #bottom-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 24px;
+            background: linear-gradient(to top, var(--bg-color) 40%, transparent);
+            text-align: center;
+            pointer-events: auto;
+            box-sizing: border-box;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto 10px auto;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .bat-value {
+            font-family: 'Consolas', monospace;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* تصميم شريط التمرير (Slider) */
+        input[type=range] {
+            width: 100%;
+            max-width: 600px;
+            height: 6px;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--primary-color);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 4px solid var(--bg-color);
+            box-shadow: 0 0 0 1px var(--primary-color);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+        .background-mountains {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 45%;
+            /* جبال بأسلوب Vector Art نظيف */
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" preserveAspectRatio="none"><path d="M0,300 L0,180 L180,80 L320,190 L500,60 L650,170 L850,30 L1000,160 L1000,300 Z" fill="%231e293b" opacity="0.6"/><path d="M-50,300 L-50,220 L120,140 L250,240 L400,150 L600,260 L800,150 L1050,220 L1050,300 Z" fill="%230f172a" opacity="0.8"/></svg>');
+            background-repeat: no-repeat;
+            background-size: cover;
+            z-index: -2;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة الترحيب بأسلوب "مركز أبحاث" -->
+    <div id="splash-screen">
+        <div class="splash-content">
+            <div class="research-icon">🔬</div>
+            <h1>محاكاة خفافيش مكة</h1>
+            <h2>نظام تحليل التوازن البيئي</h2>
+            <button id="start-btn" onclick="startGame()">بدء التحليل والمحاكاة</button>
+        </div>
+        
+        <div class="credits-card">
+            <div class="dev-branding">
+                <span class="dev-label">تصميم وبرمجة الحلول الرقمية</span>
+                <span class="dev-name">محمد جبلي</span>
+            </div>
+            <a href="https://wa.me/966505501575" target="_blank" class="whatsapp-link">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" style="margin-left: 5px;"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.658-.699c.963.547 1.837.871 3.105.871 3.181 0 5.767-2.587 5.768-5.766.001-3.181-2.586-5.767-5.767-5.767zm6.406 9.248l-1.329-1.097-1.375-.702-1.002-1.544.467-1.183c.192-.488.122-1.061-.197-1.489l-.899-1.203c-.32-.429-.849-.658-1.384-.597l-1.571.18c-.523.06-1.002.356-1.319.81l-.564.807c-.317.453-.447.992-.355 1.475l.145.757c.093.488.355.927.733 1.23l1.163.935c.379.304.909.429 1.415.334l1.373-.261c.506-.096 1.04.029 1.433.342l.956.769c.393.316.676.79.77 1.285l.168.886c.095.495.395 1.005 1.103.893l.283-.045c.637-.1 1.099-.695 1.033-1.338-.066-.644-.58-1.155-1.226-1.146l-.161-.001c.482-.596.421-1.54-.061-2.132z"/></svg>
+                تواصل لطلب مشاريعك
+            </a>
+        </div>
+    </div>
+
+    <!-- مؤشر التعليمات -->
+    <div id="tutorial-pointer">
+        <p>ابدأ بضبط التوازن هنا</p>
+    </div>
+
+    <div class="background-mountains"></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- زر الإخفاء -->
+    <button id="toggle-ui-btn" onclick="toggleUI()" title="إخفاء/إظهار الواجهة">👁️</button>
+
+    <!-- لوحة المؤشرات العلوية -->
+    <div class="status-panel ui-element" id="top-panel">
+        <div class="metric" onclick="showExplanation('pest')">
+            <span>بعوض</span>
+            <div class="metric-bar"><div id="pest-bar" class="bar-fill" style="background: var(--danger-color);"></div></div>
+        </div>
+        <div class="metric" onclick="showExplanation('rat')">
+            <span>قوارض</span>
+            <div class="metric-bar"><div id="rat-bar" class="bar-fill" style="background: var(--warning-color);"></div></div>
+        </div>
+        <div class="metric" onclick="showExplanation('plant')">
+            <span>نبات</span>
+            <div class="metric-bar"><div id="plant-bar" class="bar-fill" style="background: var(--success-color);"></div></div>
+        </div>
+        <div class="metric" onclick="showExplanation('clean')">
+            <span>فضلات</span>
+            <div class="metric-bar"><div id="clean-bar" class="bar-fill" style="background: #8B4513;"></div></div>
+        </div>
+    </div>
+
+    <!-- صندوق الشرح -->
+    <div id="explanation-box">
+        <h4 id="exp-title" style="margin: 0 0 8px 0; color: var(--primary-color);"></h4>
+        <p id="exp-body" style="margin: 0; color: var(--text-color);"></p>
+    </div>
+
+    <!-- رسائل التنبيه -->
+    <div id="message-box" class="ui-element">
+        <h3 id="msg-title" style="margin:0 0 8px 0; font-size: 1rem;">تنبيه</h3>
+        <p id="msg-body" style="margin:0; font-size: 0.9rem; line-height: 1.4; color: #cbd5e1;">نص الرسالة</p>
+    </div>
+
+    <!-- التحكم السفلي -->
+    <div class="ui-layer ui-element" id="bottom-panel">
+        <div class="control-header">
+            <span>مؤشر التعداد السكاني للخفافيش</span>
+            <span class="bat-value" id="bat-count-display">50</span>
+        </div>
+        <div class="controls">
+            <input type="range" id="batSlider" min="0" max="100" value="50" oninput="hideTutorial()">
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('batSlider');
+        const batCountDisplay = document.getElementById('bat-count-display');
+        const messageBox = document.getElementById('message-box');
+        const msgTitle = document.getElementById('msg-title');
+        const msgBody = document.getElementById('msg-body');
+        const explanationBox = document.getElementById('explanation-box');
+        const expTitle = document.getElementById('exp-title');
+        const expBody = document.getElementById('exp-body');
+        const tutorialPointer = document.getElementById('tutorial-pointer');
+
+        let width, height, groundY;
+        let animationId;
+        let activeExplanation = null;
+        let tutorialShown = true;
+
+        const explanations = {
+            pest: {
+                title: "🦟 مؤشر الآفات الطائرة",
+                body: "يمثل كثافة البعوض والحشرات الطائرة. الخفافيش الحشرية تعمل كمبيد حيوي طبيعي عالي الكفاءة، حيث يستهلك الخفاش الواحد آلاف الحشرات ليلياً."
+            },
+            rat: {
+                title: "🐀 مؤشر القوارض",
+                body: "يرتبط بوجود الفاكهة التالفة. تقوم خفافيش الفاكهة باستهلاك ثمار الأشجار (كاشجار النيم) قبل سقوطها وتعفنها، مما يقطع السلسلة الغذائية عن الجرذان."
+            },
+            plant: {
+                title: "🌳 مؤشر الغطاء النباتي",
+                body: "يعكس صحة الأشجار وانتشارها. تساهم الخفافيش في تلقيح الأزهار ونثر البذور في المناطق الجبلية الوعرة، مما يعزز التشجير الطبيعي."
+            },
+            clean: {
+                title: "💩 مؤشر المخلفات العضوية",
+                body: "يرصد تراكم فضلات الخفافيش (Guano). الازدحام غير الطبيعي للمستعمرات في المناطق الحضرية يؤدي لمشاكل صحية وتلوث بصري للمباني."
+            }
+        };
+
+        function startGame() {
+            document.getElementById('splash-screen').style.display = 'none';
+            tutorialPointer.style.display = 'flex';
+            resize();
+            initTrees();
+            gameLoop();
+        }
+
+        function hideTutorial() {
+            if (tutorialShown) {
+                tutorialPointer.style.display = 'none';
+                tutorialShown = false;
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            groundY = height - 80;
+        }
+        window.addEventListener('resize', () => {
+            resize();
+            initTrees();
+        });
+
+        function toggleUI() {
+            state.uiVisible = !state.uiVisible;
+            const elements = document.querySelectorAll('.ui-element');
+            const btn = document.getElementById('toggle-ui-btn');
+            
+            if (!state.uiVisible) {
+                elements.forEach(el => el.classList.add('hidden'));
+                btn.style.opacity = "0.4";
+                btn.style.background = "transparent";
+                explanationBox.classList.remove('active');
+                activeExplanation = null;
+                tutorialPointer.style.display = 'none';
+            } else {
+                elements.forEach(el => el.classList.remove('hidden'));
+                btn.style.opacity = "1";
+                btn.style.background = "var(--panel-bg)";
+                if(tutorialShown) tutorialPointer.style.display = 'flex';
+            }
+        }
+
+        function showExplanation(type) {
+            if (!state.uiVisible) return;
+
+            if (activeExplanation === type) {
+                explanationBox.classList.remove('active');
+                activeExplanation = null;
+            } else {
+                expTitle.textContent = explanations[type].title;
+                expBody.textContent = explanations[type].body;
+                explanationBox.classList.add('active');
+                activeExplanation = type;
+                
+                setTimeout(() => {
+                    if (activeExplanation === type) {
+                        explanationBox.classList.remove('active');
+                        activeExplanation = null;
+                    }
+                }, 8000);
+            }
+        }
+
+        let state = {
+            bats: 50,
+            insects: 20,
+            rats: 0,
+            guano: 0,
+            greeneryHealth: 100,
+            fruitRot: 0,
+            uiVisible: true
+        };
+
+        const entities = { bats: [], insects: [], rats: [], guano: [], trees: [] };
+
+        function initTrees() {
+            entities.trees = [];
+            const treeCount = Math.max(3, Math.floor(width / 120));
+            const spacing = width / (treeCount + 1);
+            for(let i=1; i<=treeCount; i++) {
+                let foliage = [];
+                for(let k=0; k<6; k++) {
+                    foliage.push({
+                        dx: (Math.random()-0.5)*35,
+                        dy: (Math.random()-0.5)*35,
+                        size: 25 + Math.random()*10
+                    });
+                }
+
+                entities.trees.push({
+                    x: spacing * i,
+                    y: groundY,
+                    height: 120 + Math.random() * 40,
+                    hasFruit: true,
+                    foliage: foliage
+                });
+            }
+        }
+
+        class Bat {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * (height * 0.45);
+                this.vx = (Math.random() - 0.5) * 3;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.phase = Math.random() * Math.PI * 2;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy + Math.sin(this.phase) * 0.5;
+                this.phase += 0.2;
+                
+                if(this.x < -20) this.x = width + 20;
+                if(this.x > width + 20) this.x = -20;
+                if(this.y < -20 || this.y > groundY - 50) this.vy *= -1;
+                
+                if(Math.random() < 0.02) {
+                    this.vx = (Math.random() - 0.5) * 4;
+                    this.vy = (Math.random() - 0.5) * 3;
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.fillStyle = "#cbd5e1"; // لون فاتح قليلا ليظهر في الخلفية الداكنة
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 4, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                let wingY = Math.sin(this.phase) * 6;
+                ctx.beginPath();
+                ctx.moveTo(0, -2);
+                ctx.quadraticCurveTo(12, -8 + wingY, 18, 2 + wingY);
+                ctx.quadraticCurveTo(8, 6 + wingY, 0, 2);
+                ctx.moveTo(0, -2);
+                ctx.quadraticCurveTo(-12, -8 + wingY, -18, 2 + wingY);
+                ctx.quadraticCurveTo(-8, 6 + wingY, 0, 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Insect {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height * 0.7; // تبقى في الجزء العلوي والمتوسط
+                this.vx = (Math.random() - 0.5) * 1;
+                this.vy = (Math.random() - 0.5) * 1;
+                this.alpha = Math.random() * 0.5 + 0.3;
+            }
+            update() {
+                this.x += this.vx + (Math.random() - 0.5) * 2;
+                this.y += this.vy;
+                if(this.x < 0) this.x = width; else if(this.x > width) this.x = 0;
+                if(this.y < 0) this.y = height; else if(this.y > groundY) this.y = 0;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(239, 68, 68, ${this.alpha})`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, 1.2, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        class Rat {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = groundY - 2; 
+                this.vx = (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random());
+                this.dir = this.vx > 0 ? -1 : 1;
+            }
+            update() {
+                this.x += this.vx;
+                if(this.x < 0 || this.x > width) this.vx *= -1;
+                this.dir = this.vx > 0 ? -1 : 1;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.dir, 1);
+                ctx.font = "14px Arial";
+                ctx.fillText("🐀", -8, 0);
+                ctx.restore();
+            }
+        }
+
+        class Guano {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() > 0.6 ? groundY + Math.random()*5 : Math.random() * (groundY - 100) + 100;
+                this.size = Math.random() * 1.5 + 1;
+            }
+            draw() {
+                ctx.fillStyle = "rgba(200, 200, 200, 0.4)";
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, width, height);
+            updateSimulationLogic();
+            drawEnvironment();
+            manageEntities();
+            updateUI();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateSimulationLogic() {
+            let batLevel = parseInt(slider.value);
+            state.bats = batLevel;
+            batCountDisplay.textContent = batLevel;
+
+            let targetInsects = Math.max(0, (85 - batLevel) * 3); 
+            
+            let targetRats = 0;
+            if (batLevel < 25) {
+                state.fruitRot = Math.min(100, state.fruitRot + 1.5);
+                targetRats = Math.floor((25 - batLevel) / 1.5);
+            } else {
+                state.fruitRot = Math.max(0, state.fruitRot - 2);
+                targetRats = 0;
+            }
+
+            if (batLevel > 20 && batLevel < 80) {
+                state.greeneryHealth = Math.min(100, state.greeneryHealth + 0.8);
+            } else {
+                state.greeneryHealth = Math.max(30, state.greeneryHealth - 0.4);
+            }
+
+            if (batLevel > 55) {
+                let wasteFactor = (batLevel - 55) * 0.15;
+                state.guano = Math.min(100, state.guano + wasteFactor);
+            } else {
+                state.guano = Math.max(0, state.guano - 1.2);
+            }
+
+            adjustEntityCounts(targetInsects, targetRats);
+        }
+
+        function adjustEntityCounts(targetInsects, targetRats) {
+            let targetBats = Math.floor(state.bats / 2.5);
+            while (entities.bats.length < targetBats) entities.bats.push(new Bat());
+            while (entities.bats.length > targetBats) entities.bats.pop();
+
+            while (entities.insects.length < targetInsects) entities.insects.push(new Insect());
+            while (entities.insects.length > targetInsects) entities.insects.pop();
+
+            while (entities.rats.length < targetRats) entities.rats.push(new Rat());
+            while (entities.rats.length > targetRats) entities.rats.pop();
+
+            let maxGuanoSpots = state.guano * 6;
+            while (entities.guano.length < maxGuanoSpots) entities.guano.push(new Guano());
+            while (entities.guano.length > maxGuanoSpots) entities.guano.pop();
+        }
+
+        function manageEntities() {
+            // رسم الفضلات
+            entities.guano.forEach(g => g.draw());
+
+            // رسم الأشجار (تصميم أكثر واقعية وهدوء)
+            entities.trees.forEach(tree => {
+                // الجذع
+                ctx.fillStyle = "#3f2e26";
+                ctx.fillRect(tree.x - 6, tree.y - tree.height, 12, tree.height);
+                
+                // الأوراق
+                let healthFactor = state.greeneryHealth / 100;
+                // تدرج لوني بين الأخضر المصفر (مريض) والأخضر الغامق (صحي)
+                let r = 100 * (1 - healthFactor); 
+                let g = 80 + 100 * healthFactor; 
+                let b = 50 * healthFactor;
+                
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                
+                tree.foliage.forEach(leaf => {
+                    ctx.beginPath();
+                    ctx.arc(
+                        tree.x + leaf.dx, 
+                        (tree.y - tree.height) + leaf.dy, 
+                        leaf.size, 
+                        0, Math.PI*2
+                    );
+                    ctx.fill();
+                });
+
+                // الثمار
+                if (state.fruitRot > 30) {
+                     // ثمار ساقطة
+                     ctx.fillStyle = "#593c28"; 
+                     ctx.beginPath();
+                     ctx.arc(tree.x + 10, groundY + 2, 3, 0, Math.PI*2); 
+                     ctx.fill();
+                } else if (state.greeneryHealth > 50) {
+                     // ثمار على الشجر
+                     ctx.fillStyle = "#fbbf24"; 
+                     for(let k=0; k<2; k++) {
+                        ctx.beginPath();
+                        ctx.arc(tree.x + (k-0.5)*15, (tree.y - tree.height) + 10, 2.5, 0, Math.PI*2);
+                        ctx.fill();
+                     }
+                }
+            });
+
+            entities.insects.forEach(i => { i.update(); i.draw(); });
+            entities.bats.forEach(b => { b.update(); b.draw(); });
+            entities.rats.forEach(r => { r.update(); r.draw(); });
+        }
+
+        function drawEnvironment() {
+            // السماء الليلية النظيفة
+            /* لا نحتاج لرسم مستطيل هنا لأن الخلفية محددة في CSS */
+            
+            // الأرضية
+            let grad = ctx.createLinearGradient(0, groundY, 0, height);
+            grad.addColorStop(0, "#1e293b"); // Slate 800
+            grad.addColorStop(1, "#0f172a"); // Slate 900
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, groundY, width, height - groundY);
+            
+            // خط الأفق
+            ctx.strokeStyle = "#334155";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(width, groundY);
+            ctx.stroke();
+        }
+
+        function updateUI() {
+            document.getElementById('pest-bar').style.width = (entities.insects.length / 2.5) + '%';
+            document.getElementById('rat-bar').style.width = (entities.rats.length * 8) + '%';
+            document.getElementById('plant-bar').style.width = state.greeneryHealth + '%';
+            document.getElementById('clean-bar').style.width = state.guano + '%';
+
+            if (!state.uiVisible) {
+                messageBox.style.display = "none";
+                return;
+            }
+
+            let msg = "", title = "", borderColor = "", show = false;
+            
+            if (state.bats < 25) {
+                title = "⚠️ اختلال التوازن (نقص)";
+                msg = "رصد ارتفاع حاد في نشاط الحشرات والقوارض نتيجة غياب المفترس الطبيعي.";
+                show = true; borderColor = "#ef4444";
+            } else if (state.bats > 85) {
+                title = "⚠️ اختلال التوازن (تكدس)";
+                msg = "رصد مستويات تلوث عالية بالمخلفات العضوية نتيجة الكثافة الزائدة في منطقة محدودة.";
+                show = true; borderColor = "#f59e0b";
+            } else if (state.bats >= 40 && state.bats <= 60) {
+                title = "✅ توازن بيئي مستقر";
+                msg = "المؤشرات الحيوية مثالية: سيطرة على الآفات، غطاء نباتي صحي، ومستويات نظافة ضمن الحدود الطبيعية.";
+                show = true; borderColor = "#10b981";
+            }
+
+            if (show) {
+                messageBox.style.display = "block";
+                messageBox.style.borderColor = borderColor;
+                messageBox.style.color = "#fff";
+                msgTitle.textContent = title;
+                msgTitle.style.color = borderColor;
+                msgBody.textContent = msg;
+            } else {
+                messageBox.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
